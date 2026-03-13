@@ -40,6 +40,8 @@ FROM base AS production
 WORKDIR /app
 RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest opencode-ai \
   && mkdir -p /paperclip \
+  && printf '%s\n' '#!/bin/sh' 'exec node /app/cli/node_modules/tsx/dist/cli.mjs /app/cli/src/index.ts "$@"' > /usr/local/bin/paperclipai \
+  && chmod +x /usr/local/bin/paperclipai \
   && chown node:node /paperclip
 COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/tsconfig.base.json /app/
 COPY --from=build /app/cli/package.json /app/cli/package.json
