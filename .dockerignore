@@ -11,7 +11,8 @@ node_modules
 **/dist
 **/.vite
 coverage
-cli
+cli/*
+!cli/package.json
 data
 doc
 docs

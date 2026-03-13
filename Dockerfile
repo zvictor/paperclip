@@ -7,6 +7,7 @@ RUN corepack enable
 FROM base AS build
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY cli/package.json cli/
 COPY server/package.json server/
 COPY ui/package.json ui/
 COPY packages/shared/package.json packages/shared/
@@ -33,6 +34,17 @@ RUN pnpm --filter @paperclipai/server prepare:ui-dist \
   && pnpm --filter @paperclipai/server build
 RUN test -f server/dist/index.js || (echo "ERROR: server build output missing" && exit 1)
 
+FROM build AS runtime-bundle
+RUN mkdir -p /runtime/packages /runtime/server \
+  && for dir in packages/adapter-utils packages/shared packages/db packages/adapters/*; do \
+    mkdir -p "/runtime/$dir"; \
+    cp "$dir/package.json" "/runtime/$dir/package.json"; \
+    cp -R "$dir/src" "/runtime/$dir/src"; \
+  done \
+  && cp server/package.json /runtime/server/package.json \
+  && cp -R server/dist /runtime/server/dist \
+  && cp -R server/ui-dist /runtime/server/ui-dist
+
 FROM base AS production
 WORKDIR /app
 RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/codex@latest opencode-ai \
@@ -40,11 +52,9 @@ RUN npm install --global --omit=dev @anthropic-ai/claude-code@latest @openai/cod
   && chown node:node /paperclip
 COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/tsconfig.base.json /app/
 COPY --from=build /app/node_modules /app/node_modules
-COPY --from=build /app/server/package.json /app/server/package.json
 COPY --from=build /app/server/node_modules /app/server/node_modules
-COPY --from=build /app/server/dist /app/server/dist
-COPY --from=build /app/server/ui-dist /app/server/ui-dist
-COPY --from=build /app/packages /app/packages
+COPY --from=runtime-bundle /runtime/server /app/server
+COPY --from=runtime-bundle /runtime/packages /app/packages
 COPY --chown=node:node skills /app/skills
 
 ENV NODE_ENV=production \
