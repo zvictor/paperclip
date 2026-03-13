@@ -13,6 +13,8 @@ node_modules
 coverage
 cli/*
 !cli/package.json
+!cli/src/
+!cli/src/**
 data
 doc
 docs
